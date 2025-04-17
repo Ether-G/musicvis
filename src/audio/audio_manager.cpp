@@ -44,16 +44,30 @@ bool AudioManager::initializePortAudio() {
     int numDevices = Pa_GetDeviceCount();
     std::cout << "Number of audio devices: " << numDevices << std::endl;
     
-    // List available host APIs
-    int numHostApis = Pa_GetHostApiCount();
-    std::cout << "Number of host APIs: " << numHostApis << std::endl;
-    
-    for (int i = 0; i < numHostApis; i++) {
-        const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(i);
-        std::cout << "API " << i << ": " << apiInfo->name 
-                  << " (type: " << apiInfo->type
-                  << ", devices: " << apiInfo->deviceCount << ")" << std::endl;
+    for (int i = 0; i < numDevices; i++) {
+        const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(i);
+        if (deviceInfo) {
+            std::cout << "Device " << i << ": " << deviceInfo->name 
+                    << " (in: " << deviceInfo->maxInputChannels 
+                    << ", out: " << deviceInfo->maxOutputChannels << ")" << std::endl;
+        }
     }
+    
+    // Print default devices
+    int defaultInput = Pa_GetDefaultInputDevice();
+    int defaultOutput = Pa_GetDefaultOutputDevice();
+    
+    std::cout << "Default input device: " << defaultInput;
+    if (defaultInput != paNoDevice) {
+        std::cout << " (" << Pa_GetDeviceInfo(defaultInput)->name << ")";
+    }
+    std::cout << std::endl;
+    
+    std::cout << "Default output device: " << defaultOutput;
+    if (defaultOutput != paNoDevice) {
+        std::cout << " (" << Pa_GetDeviceInfo(defaultOutput)->name << ")";
+    }
+    std::cout << std::endl;
     
     std::cout << "PortAudio initialized successfully" << std::endl;
     return true;
@@ -86,40 +100,24 @@ bool AudioManager::loadFile(const std::string& filePath) {
     m_sampleRate = m_audioBuffer->getSampleRate();
     m_channelCount = m_audioBuffer->getChannelCount();
     
-    // Try to find the PulseAudio API
-    PaHostApiIndex pulseIndex = -1;
-    for (int i = 0; i < Pa_GetHostApiCount(); i++) {
-        const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(i);
-        if (apiInfo->type == paJACK || 
-            (apiInfo->name && strstr(apiInfo->name, "PulseAudio"))) {
-            pulseIndex = i;
-            std::cout << "Found PulseAudio or JACK API: " << apiInfo->name << std::endl;
-            break;
-        }
-    }
-    
     // Create output stream
     PaStreamParameters outputParams;
     memset(&outputParams, 0, sizeof(outputParams));
     
-    // Use PulseAudio device if available, otherwise fall back to default
-    if (pulseIndex >= 0) {
-        const PaHostApiInfo* apiInfo = Pa_GetHostApiInfo(pulseIndex);
-        outputParams.device = apiInfo->defaultOutputDevice;
-        std::cout << "Using " << apiInfo->name << " output device" << std::endl;
-    } else {
-        outputParams.device = Pa_GetDefaultOutputDevice();
-        std::cout << "Using default output device (PulseAudio not found)" << std::endl;
-    }
-    
+    // Get default output device
+    outputParams.device = Pa_GetDefaultOutputDevice();
     if (outputParams.device == paNoDevice) {
-        std::cerr << "No output device found" << std::endl;
+        std::cerr << "No default output device found" << std::endl;
         return false;
     }
     
+    // Print device info for debugging
+    const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(outputParams.device);
+    std::cout << "Using audio device: " << deviceInfo->name << std::endl;
+    
     outputParams.channelCount = m_channelCount;
     outputParams.sampleFormat = paFloat32;
-    outputParams.suggestedLatency = Pa_GetDeviceInfo(outputParams.device)->defaultLowOutputLatency;
+    outputParams.suggestedLatency = deviceInfo->defaultLowOutputLatency;
     outputParams.hostApiSpecificStreamInfo = nullptr;
     
     PaError err = Pa_OpenStream(

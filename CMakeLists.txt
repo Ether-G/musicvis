@@ -25,6 +25,15 @@ if(NOT FFTW3_LIBRARIES)
   message(FATAL_ERROR "FFTW3 library not found")
 endif()
 
+# Find libsndfile
+find_library(SNDFILE_LIBRARIES NAMES sndfile libsndfile)
+if(SNDFILE_LIBRARIES)
+  add_definitions(-DUSE_LIBSNDFILE)
+  message(STATUS "Found libsndfile: ${SNDFILE_LIBRARIES}")
+else()
+  message(WARNING "libsndfile not found, will use synthesized audio")
+endif()
+
 # Define USE_GLEW to switch from GLAD to GLEW
 add_definitions(-DUSE_GLEW)
 
@@ -63,6 +72,7 @@ target_link_libraries(music_visualizer
     glfw
     ${GLEW_LIBRARIES}
     ${FFTW3_LIBRARIES}
+    ${SNDFILE_LIBRARIES}
     portaudio
     pthread
     dl

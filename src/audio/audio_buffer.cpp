@@ -4,9 +4,6 @@
 #include <cstring>
 #include "audio/audio_buffer.h"
 
-// We'll use a simple implementation for now, in a real application
-// you would use a library like libsndfile to handle various audio formats
-
 AudioBuffer::AudioBuffer()
     : m_position(0)
     , m_sampleRate(44100)
@@ -18,9 +15,50 @@ AudioBuffer::~AudioBuffer() {
 }
 
 bool AudioBuffer::loadFromFile(const std::string& filePath) {
+#ifdef USE_LIBSNDFILE
+    std::cout << "Using libsndfile to load: " << filePath << std::endl;
+    
+    // Open sound file
+    SF_INFO sfInfo;
+    memset(&sfInfo, 0, sizeof(sfInfo));
+    
+    SNDFILE* file = sf_open(filePath.c_str(), SFM_READ, &sfInfo);
+    if (!file) {
+        std::cerr << "Error opening sound file: " << sf_strerror(NULL) << std::endl;
+        return false;
+    }
+    
+    // Set sample rate and channel count
+    m_sampleRate = sfInfo.samplerate;
+    m_channelCount = sfInfo.channels;
+    
+    // Read the entire file
+    std::vector<float> buffer(sfInfo.frames * sfInfo.channels);
+    sf_count_t count = sf_readf_float(file, buffer.data(), sfInfo.frames);
+    
+    // Close the file
+    sf_close(file);
+    
+    if (count != sfInfo.frames) {
+        std::cerr << "Error reading sound file: " << filePath << std::endl;
+        return false;
+    }
+    
+    // Store the audio data
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_audioData = buffer;
+    m_position = 0;
+    
+    std::cout << "Loaded audio file: " << filePath << std::endl;
+    std::cout << "Sample rate: " << m_sampleRate << ", Channels: " << m_channelCount << std::endl;
+    std::cout << "Duration: " << float(sfInfo.frames) / m_sampleRate << " seconds" << std::endl;
+    
+    return true;
+#else
+    std::cout << "USE_LIBSNDFILE not defined, using sine wave" << std::endl;
+    
     // For simplicity, we'll just simulate loading a file
     // In a real application, you would use libsndfile or similar
-    
     std::cout << "Note: This is a simplified implementation." << std::endl;
     std::cout << "In a real application, use libsndfile to load audio files." << std::endl;
     
@@ -50,6 +88,7 @@ bool AudioBuffer::loadFromFile(const std::string& filePath) {
               << m_sampleRate << " Hz, " << m_channelCount << " channels" << std::endl;
     
     return true;
+#endif
 }
 
 std::vector<float> AudioBuffer::getSamples(size_t numSamples) {

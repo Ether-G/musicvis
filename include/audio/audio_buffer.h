@@ -5,6 +5,10 @@
 #include <vector>
 #include <mutex>
 
+#ifdef USE_LIBSNDFILE
+#include <sndfile.h>
+#endif
+
 class AudioBuffer {
 public:
     AudioBuffer();
