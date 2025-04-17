@@ -47,6 +47,7 @@ bool RenderEngine::initialize(int width, int height, const std::string& title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);  // Enable debug context
     
     // Create window
     m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
@@ -84,11 +85,17 @@ bool RenderEngine::initialize(int width, int height, const std::string& title) {
     // Set up VAO
     glBindVertexArray(m_vao);
     
-    // Configure VBO
+    // Configure VBO - we need to actually allocate some initial data
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    
+    // Allocate initial buffer data (empty for now, will be updated in draw calls)
+    float initialData[36] = {0}; // 6 vertices * 6 components (pos + color)
+    glBufferData(GL_ARRAY_BUFFER, sizeof(initialData), initialData, GL_DYNAMIC_DRAW);
+    
     // Position attribute (x, y)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    
     // Color attribute (r, g, b, a)
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
@@ -97,12 +104,20 @@ bool RenderEngine::initialize(int width, int height, const std::string& title) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     
+    // Check for OpenGL errors after VAO/VBO setup
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error after VAO/VBO setup: " << error << std::endl;
+    }
+    
     std::cout << "Render engine initialized: " << width << "x" << height << std::endl;
     
     return true;
 }
 
 void RenderEngine::shutdown() {
+    std::cout << "Shutting down render engine..." << std::endl;
+    
     if (m_vao) {
         glDeleteVertexArrays(1, &m_vao);
         m_vao = 0;
@@ -172,13 +187,20 @@ bool RenderEngine::createShaders() {
     unsigned int shader = m_shaderManager->createShaderProgram(vertexShaderSource, fragmentShaderSource);
     if (!shader) {
         std::cerr << "Failed to create basic shader" << std::endl;
+        
+        // Check for OpenGL errors
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            std::cerr << "OpenGL error after shader creation: " << error << std::endl;
+        }
+        
         return false;
     }
     
     m_currentShader = shader;
     
     // Set projection matrix
-    glUseProgram(m_currentShader);
+    glUseProgram(m_shaderManager->getShaderProgram(m_currentShader));
     
     // Create orthographic projection matrix
     float left = 0.0f;
@@ -195,8 +217,20 @@ bool RenderEngine::createShaders() {
         -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(zFar + zNear) / (zFar - zNear), 1.0f
     };
     
-    int projectionLoc = glGetUniformLocation(m_currentShader, "projection");
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, orthoMatrix);
+    int projectionLoc = glGetUniformLocation(m_shaderManager->getShaderProgram(m_currentShader), "projection");
+    if (projectionLoc == -1) {
+        std::cerr << "Could not find projection uniform in shader" << std::endl;
+    } else {
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, orthoMatrix);
+    }
+    
+    // Check for errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error after setting projection matrix: " << error << std::endl;
+    }
+    
+    std::cout << "Shaders created successfully" << std::endl;
     
     return true;
 }
@@ -205,6 +239,7 @@ void RenderEngine::beginFrame() {
     // Clear the screen
     glClearColor(0.0f, 0.0f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    // std::cout << "Frame begun" << std::endl;
 }
 
 void RenderEngine::endFrame() {
@@ -213,6 +248,7 @@ void RenderEngine::endFrame() {
     
     // Poll for events
     glfwPollEvents();
+    // std::cout << "Frame ended" << std::endl;
 }
 
 bool RenderEngine::shouldClose() const {
@@ -245,7 +281,7 @@ void RenderEngine::drawRectangle(
     };
     
     // Bind shader
-    glUseProgram(m_currentShader);
+    glUseProgram(m_shaderManager->getShaderProgram(m_currentShader));
     
     // Bind VAO
     glBindVertexArray(m_vao);
@@ -254,8 +290,24 @@ void RenderEngine::drawRectangle(
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
     
+    // Make sure attributes are enabled
+    glEnableVertexAttribArray(0); // Position
+    glEnableVertexAttribArray(1); // Color
+    
+    // Check for errors after buffer data
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error after buffer data: " << error << std::endl;
+    }
+    
     // Draw
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    // Check for errors after draw
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error after draw: " << error << std::endl;
+    }
     
     // Unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0);

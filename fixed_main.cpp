@@ -1,24 +1,16 @@
 #include <iostream>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
-#include <GLFW/glfw3.h>
 #include <thread>
-#include <GLFW/glfw3.h>
 #include <memory>
-#include <GLFW/glfw3.h>
 
 #include "audio/audio_manager.h"
-#include <GLFW/glfw3.h>
 #include "analysis/fft_analyzer.h"
-#include <GLFW/glfw3.h>
 #include "analysis/beat_detector.h"
-#include <GLFW/glfw3.h>
 #include "visualization/visualization_manager.h"
-#include <GLFW/glfw3.h>
 #include "render/render_engine.h"
-#include <GLFW/glfw3.h>
 #include "input/input_handler.h"
-#include <GLFW/glfw3.h>
 
 int main(int argc, char* argv[]) {
     try {
@@ -30,6 +22,10 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to initialize render engine" << std::endl;
             return 1;
         }
+
+        // Get viewport size
+        int width, height;
+        renderEngine->getViewportSize(width, height);
 
         // Initialize input handler
         auto inputHandler = std::make_shared<InputHandler>(renderEngine->getWindow());
@@ -53,7 +49,7 @@ int main(int argc, char* argv[]) {
         }
 
         auto beatDetector = std::make_shared<BeatDetector>();
-        if (!beatDetector->initialize(0.25f)) { // 0.15 sensitivity
+        if (!beatDetector->initialize(0.15f)) { // 0.15 sensitivity
             std::cerr << "Failed to initialize beat detector" << std::endl;
             return 1;
         }
@@ -84,6 +80,17 @@ int main(int argc, char* argv[]) {
 
         // Main loop
         auto lastTime = std::chrono::high_resolution_clock::now();
+        int frameCount = 0;
+        
+        // Test colors for visualization
+        float colors[4][4] = {
+            {1.0f, 0.0f, 0.0f, 1.0f}, // Red
+            {0.0f, 1.0f, 0.0f, 1.0f}, // Green
+            {0.0f, 0.0f, 1.0f, 1.0f}, // Blue
+            {1.0f, 1.0f, 0.0f, 1.0f}  // Yellow
+        };
+        int currentColor = 0;
+        
         while (!renderEngine->shouldClose()) {
             // Calculate delta time
             auto currentTime = std::chrono::high_resolution_clock::now();
@@ -96,11 +103,19 @@ int main(int argc, char* argv[]) {
             // Handle input for switching visualizers
             if (inputHandler->isKeyPressed(GLFW_KEY_SPACE) && inputHandler->isKeyJustPressed()) {
                 visualizationManager->nextVisualizer();
+                std::cout << "Switched to visualizer: " << visualizationManager->getCurrentVisualizerName() << std::endl;
             }
             
             // Handle input for audio controls
             if (inputHandler->isKeyPressed(GLFW_KEY_P) && inputHandler->isKeyJustPressed()) {
                 audioManager->togglePlayback();
+                std::cout << "Toggled audio playback" << std::endl;
+            }
+            
+            // Handle color switching for test rectangle
+            if (inputHandler->isKeyPressed(GLFW_KEY_C) && inputHandler->isKeyJustPressed()) {
+                currentColor = (currentColor + 1) % 4;
+                std::cout << "Switched test rectangle color" << std::endl;
             }
 
             // Get audio data
@@ -108,26 +123,75 @@ int main(int argc, char* argv[]) {
             
             // Process audio data
             if (!audioSamples.empty()) {
+                // Print some debug about audio
+                if (frameCount % 60 == 0) { // Only print once per second at 60fps
+                    std::cout << "Audio sample count: " << audioSamples.size() << std::endl;
+                    
+                    // Print a few sample values
+                    if (audioSamples.size() >= 4) {
+                        std::cout << "Sample values: " 
+                                  << audioSamples[0] << ", " 
+                                  << audioSamples[1] << ", "
+                                  << audioSamples[2] << ", "
+                                  << audioSamples[3] << std::endl;
+                    }
+                }
+                
                 // Analyze audio data
                 fftAnalyzer->processAudioData(audioSamples);
+                std::vector<float> spectrum = fftAnalyzer->getSpectrumData();
+                
+                if (frameCount % 60 == 0 && !spectrum.empty()) {
+                    std::cout << "Spectrum data count: " << spectrum.size() << std::endl;
+                    
+                    // Print a few spectrum values
+                    if (spectrum.size() >= 4) {
+                        std::cout << "Spectrum values: " 
+                                  << spectrum[0] << ", " 
+                                  << spectrum[1] << ", "
+                                  << spectrum[2] << ", "
+                                  << spectrum[3] << std::endl;
+                    }
+                }
+                
                 beatDetector->analyzeAudio(audioSamples);
+                bool beat = beatDetector->isBeatDetected();
+                
+                if (beat && frameCount % 10 == 0) {
+                    std::cout << "Beat detected!" << std::endl;
+                }
                 
                 // Update visualization
                 visualizationManager->update(
                     deltaTime,
                     audioSamples,
-                    fftAnalyzer->getSpectrumData(),
-                    beatDetector->isBeatDetected()
+                    spectrum,
+                    beat
                 );
             }
 
             // Render frame
             renderEngine->beginFrame();
+            
+            // Draw a test rectangle that changes color
+            renderEngine->drawRectangle(
+                width * 0.25f, height * 0.25f, 
+                width * 0.5f, height * 0.5f,
+                colors[currentColor][0], 
+                colors[currentColor][1], 
+                colors[currentColor][2], 
+                colors[currentColor][3]
+            );
+            
+            // Draw the visualizer
             visualizationManager->render();
+            
             renderEngine->endFrame();
 
             // Limit frame rate
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 fps
+            
+            frameCount++;
         }
 
         // Cleanup

@@ -51,12 +51,18 @@ void VisualizationManager::update(
     bool beatDetected
 ) {
     if (m_currentVisualizer < m_visualizers.size()) {
+        std::cout << "Updating visualizer: " << m_visualizers[m_currentVisualizer]->getName() << std::endl;
+        std::cout << "  - Audio data size: " << audioData.size() << std::endl;
+        std::cout << "  - Frequency data size: " << frequencyData.size() << std::endl;
+        std::cout << "  - Beat detected: " << (beatDetected ? "Yes" : "No") << std::endl;
+        
         m_visualizers[m_currentVisualizer]->update(
             deltaTime,
             audioData,
             frequencyData,
             beatDetected
         );
+        std::cout << "Visualizer updated" << std::endl;
     }
 }
 

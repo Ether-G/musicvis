@@ -77,6 +77,8 @@ unsigned int ShaderManager::getShaderProgram(unsigned int id) const {
     if (it != m_shaderPrograms.end()) {
         return it->second;
     }
+    // If not found, log an error and return 0
+    std::cerr << "Shader program ID " << id << " not found!" << std::endl;
     return 0;
 }
 

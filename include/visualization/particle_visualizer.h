@@ -39,7 +39,13 @@ public:
 
 private:
     // Spawn new particles
-    void spawnParticles(int count, float x, float y, float energy);
+    void spawnParticles(
+        int count, 
+        float x, 
+        float y, 
+        float energy,
+        const std::array<float, 4>& baseColor = {0.2f, 0.5f, 1.0f, 1.0f}
+    );
     
     // Update particles
     void updateParticles(float deltaTime);
@@ -66,6 +72,9 @@ private:
     // Beat color
     std::array<float, 4> m_beatColor;
     
+    // Alternative colors for variety
+    std::vector<std::array<float, 4>> m_altColors;
+    
     // Beat detected flag
     bool m_beatDetected;
     
@@ -80,6 +89,15 @@ private:
     
     // High frequency energy
     float m_trebleEnergy;
+    
+    // Beat counter for pattern changes
+    int m_beatCounter;
+    
+    // Time of last beat
+    float m_lastBeatTime;
+    
+    // Total time elapsed
+    float m_totalTime;
 };
 
 #endif // PARTICLE_VISUALIZER_H

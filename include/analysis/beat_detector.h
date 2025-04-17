@@ -25,6 +25,9 @@ private:
     // Calculate energy (RMS) of the audio data
     float calculateEnergy(const std::vector<float>& audioData);
     
+    // Calculate derivative energy - good for drum detection
+    float calculateDerivativeEnergy(const std::vector<float>& samples);
+    
     // History of energy values for dynamic threshold
     std::deque<float> m_energyHistory;
     
