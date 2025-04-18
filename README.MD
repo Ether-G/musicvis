@@ -139,9 +139,8 @@ graph TD
         Main --> BD(BeatDetector);
         Main --> VM;
 
-        IH --> RE;  // Needs window handle
-
-        VM --> RE; // Needs RenderEngine for drawing
+        IH --> RE;
+        VM --> RE;
         VM --> VBase(Visualizer : Base);
         VBase <|-- BarVis(BarVisualizer);
         VBase <|-- WaveVis(WaveVisualizer);
