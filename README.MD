@@ -97,6 +97,11 @@ Run the visualizer from the `build` directory:
 * `P`: Toggle play/pause for audio file playback.
 * `ESC`: Exit the application.
 
+## Example
+
+https://github.com/user-attachments/assets/5e1ba30c-e7ec-449b-8ab8-f79a5afdf0f7
+
+
 ## Architecture
 
 ```mermaid
@@ -235,7 +240,3 @@ classDiagram
     WaveVisualizer --> RenderEngine : uses
     ParticleVisualizer --> RenderEngine : uses
     ```
-
-## Example
-
-https://github.com/user-attachments/assets/5e1ba30c-e7ec-449b-8ab8-f79a5afdf0f7
