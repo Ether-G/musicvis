@@ -100,71 +100,138 @@ Run the visualizer from the `build` directory:
 ## Architecture
 
 ```mermaid
-graph TD
-    subgraph "Initialization"
-        InitMain[main.cpp starts] --> InitRE(Initialize RenderEngine);
-        InitRE --> InitIH(Initialize InputHandler);
-        InitIH --> InitAM(Initialize AudioManager);
-        InitAM --> InitAnalysis(Initialize FFTAnalyzer & BeatDetector);
-        InitAnalysis --> InitVM(Initialize VisualizationManager);
-        InitVM --> LoadAudio(Load Audio File / Start Input Capture);
-    end
+classDiagram
+    class Main {
+        +main(argc, argv)
+    }
+    class RenderEngine {
+        +initialize(width, height, title) bool
+        +shutdown()
+        +beginFrame()
+        +endFrame()
+        +shouldClose() bool
+        +getWindow() GLFWwindow*
+        +getViewportSize(width, height)
+        +drawRectangle()
+        +drawCircle()
+        +drawLine()
+        +drawLines()
+        +drawPoints()
+        -m_window: GLFWwindow*
+        -m_shaderManager: unique_ptr~ShaderManager~
+        -m_vao: unsigned int
+        -m_vbo: unsigned int
+    }
+    class ShaderManager {
+        +createShaderProgram() unsigned int
+        +loadShaderProgram() unsigned int
+        +getShaderProgram(id) unsigned int
+        -m_shaderPrograms: unordered_map~int, int~
+    }
+    class InputHandler {
+        +initialize() bool
+        +update()
+        +isKeyPressed(key) bool
+        +isKeyJustPressed() bool
+        +getMousePosition(x, y)
+        -m_window: GLFWwindow*
+        -m_keyStates
+        -m_mouseButtonStates
+    }
+    class AudioManager {
+        +initialize() bool
+        +shutdown()
+        +loadFile(filePath) bool
+        +startInputCapture() bool
+        +play() bool
+        +pause() bool
+        +togglePlayback()
+        +getAudioSamples() vector~float~
+        -m_stream: PaStream*
+        -m_audioBuffer: shared_ptr~AudioBuffer~
+        -m_currentSamples: vector~float~
+        -m_mutex: mutex
+    }
+    class AudioBuffer {
+        +loadFromFile(filePath) bool
+        +getSamples(numSamples) vector~float~
+        +reset()
+        -m_audioData: vector~float~
+        -m_position: size_t
+        -m_mutex: mutex
+    }
+    class FFTAnalyzer {
+        +initialize(windowSize) bool
+        +processAudioData(audioData)
+        +getSpectrumData() vector~float~
+        -m_fftInput: double*
+        -m_fftOutput: fftw_complex*
+        -m_fftPlan: fftw_plan
+        -m_magnitudes: vector~float~
+    }
+    class BeatDetector {
+        +initialize(sensitivity) bool
+        +analyzeAudio(audioData)
+        +isBeatDetected() bool
+        -m_energyHistory: deque~float~
+        -m_threshold: float
+        -m_beatDetected: bool
+    }
+    class VisualizationManager {
+        +initialize() bool
+        +update(deltaTime, audioData, freqData, beatDetected)
+        +render()
+        +nextVisualizer()
+        -m_renderEngine: shared_ptr~RenderEngine~
+        -m_visualizers: vector~unique_ptr~Visualizer~~
+        -m_currentVisualizer: size_t
+    }
+    class Visualizer {
+        <<Abstract>>
+        +initialize() bool
+        +update(deltaTime, audioData, freqData, beatDetected)
+        +render()
+        +getName() const char*
+        #m_renderEngine: shared_ptr~RenderEngine~
+    }
+    class BarVisualizer {
+        +initialize() bool
+        +update(deltaTime, audioData, freqData, beatDetected)
+        +render()
+        +getName() const char*
+    }
+    class WaveVisualizer {
+        +initialize() bool
+        +update(deltaTime, audioData, freqData, beatDetected)
+        +render()
+        +getName() const char*
+    }
+    class ParticleVisualizer {
+        +initialize() bool
+        +update(deltaTime, audioData, freqData, beatDetected)
+        +render()
+        +getName() const char*
+    }
 
-    subgraph "Main Loop"
-        LoopStart(Loop while window open) --> HandleInput(InputHandler processes events);
-        HandleInput -- Space key --> VM(VisualizationManager switches visualizer);
-        HandleInput -- P key --> AM(AudioManager toggles playback);
-        HandleInput -- ESC key --> LoopEnd(Exit Loop);
-        HandleInput --> GetAudio(AudioManager gets audio samples);
-        GetAudio --> AnalyzeAudio{Audio Samples Available?};
-        AnalyzeAudio -- Yes --> FFT(FFTAnalyzer processes samples);
-        AnalyzeAudio -- Yes --> Beat(BeatDetector processes samples);
-        FFT --> FreqData[Frequency Data];
-        Beat --> BeatStatus[Beat Detected?];
-        AnalyzeAudio -- No --> Render;
-        FreqData --> UpdateVis(VisualizationManager updates current Visualizer);
-        BeatStatus --> UpdateVis;
-        GetAudio -- Audio Samples --> UpdateVis;
-        UpdateVis --> Render(RenderEngine begins frame);
-        Render --> VisRender(VisualizationManager renders current Visualizer);
-        VisRender --> EndFrame(RenderEngine ends frame);
-        EndFrame --> LoopStart;
-    end
+    Main --> RenderEngine : uses
+    Main --> InputHandler : uses
+    Main --> AudioManager : uses
+    Main --> FFTAnalyzer : uses
+    Main --> BeatDetector : uses
+    Main --> VisualizationManager : uses
 
-    subgraph "Components & Dependencies"
-        Main(main.cpp) --> RE(RenderEngine);
-        Main --> IH(InputHandler);
-        Main --> AM(AudioManager);
-        Main --> FFTA(FFTAnalyzer);
-        Main --> BD(BeatDetector);
-        Main --> VM;
+    RenderEngine --> ShaderManager : uses
 
-        IH --> RE;
-        VM --> RE;
-        VM --> VBase(Visualizer : Base);
-        VBase <|-- BarVis(BarVisualizer);
-        VBase <|-- WaveVis(WaveVisualizer);
-        VBase <|-- ParticleVis(ParticleVisualizer);
-        BarVis --> RE;
-        WaveVis --> RE;
-        ParticleVis --> RE;
+    AudioManager --> AudioBuffer : uses
 
-        AM --> AB(AudioBuffer);
-        AM --> PortAudio[PortAudio Lib];
-        AB -- libsndfile --> SndFile[libsndfile Lib];
+    VisualizationManager --> RenderEngine : uses
+    VisualizationManager o-- Visualizer : manages >
 
-        FFTA --> FFTW[FFTW3 Lib];
+    Visualizer <|-- BarVisualizer
+    Visualizer <|-- WaveVisualizer
+    Visualizer <|-- ParticleVisualizer
 
-        RE --> ShaderMgr(ShaderManager);
-        RE --> GLFW[GLFW Lib];
-        RE --> GLEW[GLEW Lib];
-        RE --> OpenGL[OpenGL Lib];
-    end
-
-    InitMain --> LoopStart;
-    LoopEnd --> Shutdown(Shutdown Components);
-
-    style InitMain fill:#f9f,stroke:#333,stroke-width:2px
-    style LoopStart fill:#ccf,stroke:#333,stroke-width:2px
-    style Shutdown fill:#f9f,stroke:#333,stroke-width:2px
+    BarVisualizer --> RenderEngine : uses
+    WaveVisualizer --> RenderEngine : uses
+    ParticleVisualizer --> RenderEngine : uses
     ```
