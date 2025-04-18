@@ -1,168 +1,169 @@
 # Music Visualizer
 
-A cross-platform music visualizer built with C++ using OpenGL/GLFW for rendering and PortAudio for audio processing. Inspired by classic Windows Media Player visualizations.
+**Version:** 0.1
+
+A C++ application that visualizes audio input in real-time using various graphical effects. It can process audio from either a file or live microphone input.
 
 ## Features
 
-- Multiple visualization styles (Bar, Wave, Particle)
-- Real-time FFT audio analysis
-- Beat detection
-- Microphone input support
-- Audio file playback
-- Smooth animations and transitions
+* **Real-time Audio Visualization:** Renders graphics synchronized with audio input.
+* **Multiple Visualizers:** Includes several visualization modes:
+    * Bar Visualizer
+    * Wave Visualizer
+    * Particle Visualizer
+* **Audio Input Options:**
+    * Load and play audio files (requires libsndfile).
+    * Capture live audio from microphone/input device.
+* **Audio Analysis:**
+    * Fast Fourier Transform (FFT) for frequency spectrum data.
+    * Beat detection algorithm.
+* **OpenGL Rendering:** Uses OpenGL for rendering graphics.
+* **Cross-Platform Libraries:** Utilizes libraries like GLFW, GLEW, PortAudio, and FFTW3.
 
-## Prerequisites
+## Compatibility
 
-- Ubuntu 22.04 (or other Linux distros with modifications)
-- WSL2 (if running on Windows)
-- C++17 compatible compiler
-- CMake 3.10+
-- GLFW3
-- FFTW3
-- PortAudio
-- X Window System if using WSL2 (for displaying graphics)
+* **Operating System:** Currently developed and tested primarily on **Ubuntu Linux**.
+* **Windows Subsystem for Linux (WSL):** Known issues exist when running directly in WSL. Graphics and audio may not function correctly. Native Ubuntu is recommended.
 
-## Setup and Installation
+## Dependencies
 
-### 1. Install Dependencies
+The following libraries are required to build and run the project:
 
-```bash
-# Update package list
-sudo apt update
-sudo apt upgrade
+* **Build Tools:**
+    * CMake (version 3.10 or higher) [cite: 53]
+    * A C++17 compliant compiler (like GCC/g++) [cite: 53]
+    * Make
+    * Git (optional, for cloning)
+* **Graphics:**
+    * OpenGL [cite: 53]
+    * GLEW [cite: 53]
+    * GLFW3 [cite: 53]
+    * GLM (Note: Included via `installdeps.sh` but not explicitly in CMakeLists.txt find_package)
+* **Audio:**
+    * PortAudio (for audio I/O)
+    * FFTW3 (for FFT analysis)
+    * libsndfile (optional, for loading audio files)
 
-# Install build tools
-sudo apt install build-essential cmake git
+## Building
 
-# Install graphics libraries
-sudo apt install libglfw3-dev libglm-dev
+1.  **Clone the Repository (if you haven't already):**
+    ```bash
+    git clone <your-repository-url>
+    cd musicvis
+    ```
 
-# Install audio libraries
-sudo apt install libportaudio2 libportaudiocpp0 portaudio19-dev
-sudo apt install libfftw3-dev
+2.  **Install Dependencies (Ubuntu):**
+    Run the provided script to install necessary libraries:
+    ```bash
+    chmod +x installdeps.sh
+    ./installdeps.sh
+    ```
+    *Note: This script also installs `x11-apps`, which might be needed for GUI display, especially in WSL, though WSL usage is not fully supported.*
 
-# Install X11 forwarding if using WSL2
-sudo apt install x11-apps
-```
+3.  **Run CMake and Build:**
+    Use the build script:
+    ```bash
+    chmod +x build.sh
+    ./build.sh
+    ```
+    Alternatively, build manually:
+    ```bash
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j$(nproc)
+    ```
+    The executable will be created in the `build/bin/` directory.
 
-### 2. Prepare Project
+## Usage
 
-```bash
-# Clone the repository
-git clone https://yourrepository.com/music-visualizer.git
-cd music-visualizer
+Run the visualizer from the `build` directory:
 
-# Run preparation script
-chmod +x prepare_project.sh
-./prepare_project.sh
-```
+* **Live Audio Input:**
+    ```bash
+    ./bin/music_visualizer
+    ```
+    *(This will attempt to use the default audio input device).*
 
-### 3. Build
+* **Audio File Input:**
+    ```bash
+    ./bin/music_visualizer /path/to/your/audio_file.wav
+    ```
+    *(Requires libsndfile to be installed and detected during build).*
 
-```bash
-# Build the project
-chmod +x build.sh
-./build.sh
-```
+**Controls:**
 
-## Running the Visualizer
+* `SPACE`: Switch to the next visualizer.
+* `P`: Toggle play/pause for audio file playback.
+* `ESC`: Exit the application.
 
-### From Audio File
+## Architecture
 
-```bash
-./build/bin/music_visualizer path/to/audio-file.wav
-```
+graph TD
+    subgraph "Initialization"
+        InitMain[main.cpp starts] --> InitRE(Initialize RenderEngine);
+        InitRE --> InitIH(Initialize InputHandler);
+        InitIH --> InitAM(Initialize AudioManager);
+        InitAM --> InitAnalysis(Initialize FFTAnalyzer & BeatDetector);
+        InitAnalysis --> InitVM(Initialize VisualizationManager);
+        InitVM --> LoadAudio(Load Audio File / Start Input Capture);
+    end
 
-### From Microphone Input
+    subgraph "Main Loop"
+        LoopStart(Loop while window open) --> HandleInput(InputHandler processes events);
+        HandleInput -- Space key --> VM(VisualizationManager switches visualizer);
+        HandleInput -- P key --> AM(AudioManager toggles playback);
+        HandleInput -- ESC key --> LoopEnd(Exit Loop);
+        HandleInput --> GetAudio(AudioManager gets audio samples);
+        GetAudio --> AnalyzeAudio{Audio Samples Available?};
+        AnalyzeAudio -- Yes --> FFT(FFTAnalyzer processes samples);
+        AnalyzeAudio -- Yes --> Beat(BeatDetector processes samples);
+        FFT --> FreqData[Frequency Data];
+        Beat --> BeatStatus[Beat Detected?];
+        AnalyzeAudio -- No --> Render;
+        FreqData --> UpdateVis(VisualizationManager updates current Visualizer);
+        BeatStatus --> UpdateVis;
+        GetAudio -- Audio Samples --> UpdateVis;
+        UpdateVis --> Render(RenderEngine begins frame);
+        Render --> VisRender(VisualizationManager renders current Visualizer);
+        VisRender --> EndFrame(RenderEngine ends frame);
+        EndFrame --> LoopStart;
+    end
 
-```bash
-./build/bin/music_visualizer
-```
+    subgraph "Components & Dependencies"
+        Main(main.cpp) --> RE(RenderEngine);
+        Main --> IH(InputHandler);
+        Main --> AM(AudioManager);
+        Main --> FFTA(FFTAnalyzer);
+        Main --> BD(BeatDetector);
+        Main --> VM;
 
-## Controls
+        IH --> RE;  // Needs window handle
 
-- **ESC**: Exit the application
-- **SPACE**: Switch between visualizers
-- **P**: Play/Pause audio (when playing from a file)
+        VM --> RE; // Needs RenderEngine for drawing
+        VM --> VBase(Visualizer : Base);
+        VBase <|-- BarVis(BarVisualizer);
+        VBase <|-- WaveVis(WaveVisualizer);
+        VBase <|-- ParticleVis(ParticleVisualizer);
+        BarVis --> RE;
+        WaveVis --> RE;
+        ParticleVis --> RE;
 
-## Project Structure
+        AM --> AB(AudioBuffer);
+        AM --> PortAudio[PortAudio Lib];
+        AB -- libsndfile --> SndFile[libsndfile Lib];
 
-```
-music-visualizer/
-├── src/
-│   ├── audio/
-│   │   ├── audio_manager.cpp
-│   │   └── audio_buffer.cpp
-│   ├── analysis/
-│   │   ├── fft_analyzer.cpp
-│   │   └── beat_detector.cpp
-│   ├── visualization/
-│   │   ├── visualization_manager.cpp
-│   │   ├── bar_visualizer.cpp
-│   │   ├── wave_visualizer.cpp
-│   │   └── particle_visualizer.cpp
-│   ├── render/
-│   │   ├── render_engine.cpp
-│   │   └── shader_manager.cpp
-│   ├── input/
-│   │   └── input_handler.cpp
-│   └── main.cpp
-├── include/
-│   ├── audio/
-│   ├── analysis/
-│   ├── visualization/
-│   ├── render/
-│   └── input/
-├── assets/
-│   ├── shaders/
-│   ├── fonts/
-│   └── images/
-├── build/
-├── CMakeLists.txt
-└── README.md
-```
+        FFTA --> FFTW[FFTW3 Lib];
 
-## Extending the Visualizer
+        RE --> ShaderMgr(ShaderManager);
+        RE --> GLFW[GLFW Lib];
+        RE --> GLEW[GLEW Lib];
+        RE --> OpenGL[OpenGL Lib];
+    end
 
-### Adding New Visualizers
+    InitMain --> LoopStart;
+    LoopEnd --> Shutdown(Shutdown Components);
 
-1. Create a new class that inherits from the `Visualizer` base class
-2. Implement the required methods:
-   - `initialize()`
-   - `update()`
-   - `render()`
-   - `getName()`
-3. Register the new visualizer in `VisualizationManager::addBuiltInVisualizers()`
-
-## WSL2 Display Configuration
-
-When running in WSL2, you'll need to set up X11 forwarding to display the graphics window:
-
-1. Install an X server on Windows (like VcXsrv or Xming)
-2. Start the X server
-3. In WSL2, configure the DISPLAY environment variable:
-
-```bash
-export DISPLAY=:0
-```
-
-You can add this to your `~/.bashrc` file to make it permanent.
-
-## Future Improvements
-
-- Add more visualization types
-- Support more audio file formats
-- Add audio equalizer controls
-- Implement shader-based effects
-- Add configuration files for customization
-- Support for playlist and continuous playback
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- GLFW for OpenGL context management
-- PortAudio for cross-platform audio I/O
-- FFTW for Fast Fourier Transform implementation
+    style InitMain fill:#f9f,stroke:#333,stroke-width:2px
+    style LoopStart fill:#ccf,stroke:#333,stroke-width:2px
+    style Shutdown fill:#f9f,stroke:#333,stroke-width:2px
