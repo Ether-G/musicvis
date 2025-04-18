@@ -99,6 +99,7 @@ Run the visualizer from the `build` directory:
 
 ## Architecture
 
+```mermaid
 graph TD
     subgraph "Initialization"
         InitMain[main.cpp starts] --> InitRE(Initialize RenderEngine);
@@ -167,3 +168,4 @@ graph TD
     style InitMain fill:#f9f,stroke:#333,stroke-width:2px
     style LoopStart fill:#ccf,stroke:#333,stroke-width:2px
     style Shutdown fill:#f9f,stroke:#333,stroke-width:2px
+    ```
