@@ -30,14 +30,14 @@ A C++ application that visualizes audio input in real-time using various graphic
 The following libraries are required to build and run the project:
 
 * **Build Tools:**
-    * CMake (version 3.10 or higher) [cite: 53]
-    * A C++17 compliant compiler (like GCC/g++) [cite: 53]
+    * CMake (version 3.10 or higher) 
+    * A C++17 compliant compiler (like GCC/g++) 
     * Make
     * Git (optional, for cloning)
 * **Graphics:**
-    * OpenGL [cite: 53]
-    * GLEW [cite: 53]
-    * GLFW3 [cite: 53]
+    * OpenGL 
+    * GLEW 
+    * GLFW3 
     * GLM (Note: Included via `installdeps.sh` but not explicitly in CMakeLists.txt find_package)
 * **Audio:**
     * PortAudio (for audio I/O)
