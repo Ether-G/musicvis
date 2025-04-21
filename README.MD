@@ -1,5 +1,5 @@
 # Music Visualizer
-
+# Deprecated In favor of my MusicVisQT project
 **Version:** 0.1
 
 A C++ application that visualizes audio input in real-time using various graphical effects. It can process audio from either a file or live microphone input.
